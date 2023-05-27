@@ -1,0 +1,15 @@
+﻿cmake_minimum_required (VERSION 3.8)
+project ("ForceSensor")
+
+set(CMAKE_CXX_STANDARD 11)
+if (MSVC)
+    add_compile_options(/W4 /WX)
+else()
+    add_compile_options(-Wall -Wextra -pedantic -Werror)
+endif()
+
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
+set(FORCE_SENSOR_INC_DIR ${CMAKE_SOURCE_DIR}/include)
+include_directories(${FORCE_SENSOR_INC_DIR})
+add_subdirectory(${CMAKE_SOURCE_DIR}/examples)
+add_executable (ForceSensor  Main.cpp)
