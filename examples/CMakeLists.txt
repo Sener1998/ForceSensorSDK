@@ -1,6 +1,6 @@
 set(DEMO_LIST
 	SerialPortDemo
-	ForceSensorDemo
+	DynPickDemo
 )
 
 foreach(DEMO ${DEMO_LIST})
