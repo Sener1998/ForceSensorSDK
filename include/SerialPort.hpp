@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #ifdef WIN32
 #include <windows.h>
@@ -8,6 +8,12 @@
 #include <unistd.h>
 #endif // WIN32
 #include <iostream>
+
+#ifdef WIN32
+#define SIA_MSLEEP(x) Sleep(x) // 毫秒
+#else
+#define SIA_MSLEEP(x) usleep(x*1000) // 毫秒
+#endif // WIN32
 
 namespace sia {
 	// 串口设备状态
@@ -21,8 +27,8 @@ namespace sia {
 		std::string PortName; // 端口名
 		uint32_t Baudrate;    // 波特率
 		uint8_t Databits;     // 数据位数，5、6、7、8
-		uint8_t Stopbits;     // 停止位，0表示1位、1表示1.5位、2表示2位
-		char Parity;          // 校验为，'N'表示无、'O'表示奇校验、'E'表示偶校验
+		uint8_t Stopbits;     // 停止位，1表示1位、2表示2位、3表示1.5位、
+		char Parity;          // 校验位，'N'表示无校验、'O'表示奇校验、'E'表示偶校验
 	};
 
 #ifdef WIN32
@@ -31,6 +37,8 @@ namespace sia {
 	public:
 		explicit SerialPort() : m_Com(INVALID_HANDLE_VALUE), m_SerialState(SERIAL_CLOSE), m_SerialConfig({}) {}
 		explicit SerialPort(const SerialConfig& cfg) : m_Com(INVALID_HANDLE_VALUE), m_SerialState(SERIAL_CLOSE), m_SerialConfig(cfg) {}
+		SerialPort(const SerialPort& other) = delete;
+		SerialPort& operator=(const SerialPort& other) = delete;
 		~SerialPort() { Close(); }
 
 		bool SetSerialConfig(const SerialConfig& cfg) {
@@ -100,7 +108,7 @@ namespace sia {
 				CloseHandle(m_Com);
 			}
 			m_Com = CreateFile((LPCTSTR)m_SerialConfig.PortName.c_str(), // 端口名
-				GENERIC_READ | GENERIC_WRITE,    // 读写
+				GENERIC_READ | GENERIC_WRITE, // 读写
 				0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 			if (m_Com == INVALID_HANDLE_VALUE) {
 				m_SerialState = SERIAL_ERROR;
@@ -118,11 +126,11 @@ namespace sia {
 			}
 			m_SerialState = SERIAL_CLOSE;
 		}
-		bool IsOpen() {
+		bool IsOpen() const {
 			return (m_SerialState == SERIAL_OPEN);
 		}
 
-		int Read(char* data, int count) {
+		int Read(char* data, int count) const {
 			if (m_Com == INVALID_HANDLE_VALUE) {
 				return -1;
 			}
@@ -131,7 +139,7 @@ namespace sia {
 			COMSTAT ComStat;
 			DWORD ReadByteCount = 0;
 			ClearCommError(m_Com, &ErrorFlags, &ComStat); // 查询串口状态
-			if (ComStat.cbInQue > 0) {                        // 若读缓冲区有数据则取出
+			if (ComStat.cbInQue > 0) { // 若读缓冲区有数据则取出
 				if ((DWORD)count > ComStat.cbInQue) {
 					count = ComStat.cbInQue;
 				}
@@ -143,7 +151,7 @@ namespace sia {
 			}
 			return ReadByteCount;
 		}
-		int Write(const char* data, int count) {
+		int Write(const char* data, int count) const {
 			if (m_Com == INVALID_HANDLE_VALUE) {
 				return -1;
 			}
@@ -152,7 +160,7 @@ namespace sia {
 			COMSTAT ComStat;
 			DWORD SendByteCount = 0;
 			ClearCommError(m_Com, &ErrorFlags, &ComStat); // 查询串口状态
-			if (ComStat.cbOutQue == 0) {                  // 若写缓冲区没有数据则发送
+			if (ComStat.cbOutQue == 0) { // 若写缓冲区没有数据则发送
 				if (!WriteFile(m_Com, data, count, &SendByteCount, NULL)) {
 					if (GetLastError() != ERROR_IO_PENDING) { // 若阻塞则不能发送
 						SendByteCount = (DWORD)-1;
@@ -160,6 +168,10 @@ namespace sia {
 				}
 			}
 			return SendByteCount;
+		}
+
+		void Flush() {
+			PurgeComm(m_Com, PURGE_TXABORT | PURGE_RXABORT | PURGE_TXCLEAR | PURGE_RXCLEAR);
 		}
 
 	private:
@@ -173,6 +185,8 @@ namespace sia {
 	public:
 		explicit SerialPort() : m_Fd(-1), m_SerialState(SERIAL_CLOSE), m_SerialConfig({}) {}
 		explicit SerialPort(const SerialConfig& cfg) : m_Fd(-1), m_SerialState(SERIAL_CLOSE), m_SerialConfig(cfg) {}
+		SerialPort(const SerialPort& other) = delete;
+		SerialPort& operator=(const SerialPort& other) = delete;
 		~SerialPort() { Close(); }
 
 		bool SetSerialConfig(const SerialConfig& cfg) {
@@ -260,21 +274,25 @@ namespace sia {
 			}
 			m_SerialState = SERIAL_CLOSE;
 		}
-		bool IsOpen() {
+		bool IsOpen() const {
 			return (m_SerialState == SERIAL_OPEN);
 		}
 
-		int Read(char* data, int count) {
+		int Read(char* data, int count) const {
 			if (m_SerialState != SERIAL_OPEN) {
 				return -1;
 			}
 			return read(m_Fd, data, count);
 		}
-		int Write(const char* data, int count) {
+		int Write(const char* data, int count) const {
 			if (m_SerialState != SERIAL_OPEN) {
 				return -1;
 			}
 			return write(m_Fd, data, count);
+		}
+
+		void Flush() {
+			tcflush(m_Fd, TCIOFLUSH);
 		}
 
 	private:

@@ -1,6 +1,6 @@
-include_directories(${FORCE_SENSOR_INC_DIR})
 set(DEMO_LIST
 	SerialPortDemo
+	ForceSensorDemo
 )
 
 foreach(DEMO ${DEMO_LIST})
