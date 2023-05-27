@@ -2,3 +2,4 @@
 /out
 /bin
 CMakeSettings.json
+.gitignore
